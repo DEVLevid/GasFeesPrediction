@@ -43,24 +43,31 @@ def train_pipeline(
     df = load_raw_data(data_path)
     df = clean_data(df)
 
-    # Features de entrada e coluna alvo principais.
+    # Suporta CSV GoldRush (block_v2) e formato legado.
     feature_columns = []
-    if "avgGasPrice_Gwei" in df.columns:
-        feature_columns.append("avgGasPrice_Gwei")
-    if "gasLimit" in df.columns:
-        feature_columns.append("gasLimit")
-    if "gasUsed" in df.columns:
-        feature_columns.append("gasUsed")
-
+    target_column = "gas_used"
+    for col in ["gas_used", "gas_limit", "base_fee", "tx_count"]:
+        if col in df.columns and bool(df[col].notna().any()):
+            feature_columns.append(col)
+    if not feature_columns:
+        for col in ["avgGasPrice_Gwei", "gasLimit", "gasUsed"]:
+            if col in df.columns:
+                feature_columns.append(col)
+        if feature_columns:
+            target_column = "avgGasPrice_Gwei" if "avgGasPrice_Gwei" in df.columns else feature_columns[0]
     if not feature_columns:
         raise RuntimeError(
-            "Nenhuma coluna de feature encontrada (esperado: avgGasPrice_Gwei, gasLimit, gasUsed)."
+            "Nenhuma coluna de feature encontrada. "
+            "Esperado (GoldRush): gas_used, gas_limit, base_fee, tx_count; "
+            "ou (legado): avgGasPrice_Gwei, gasLimit, gasUsed."
         )
+    if target_column not in df.columns or not bool(df[target_column].notna().any()):
+        target_column = feature_columns[0]
 
     df_scaled, scaler = scale_features(df, feature_columns=feature_columns)
 
     config = SequenceConfig(
-        target_column="avgGasPrice_Gwei",
+        target_column=target_column,
         window_size=30,
         forecast_horizon=1,
     )
@@ -119,7 +126,7 @@ if __name__ == "__main__":
         "--data-path",
         type=str,
         required=True,
-        help="Caminho para o CSV consolidado de gas (gerado por fetch_gas_data).",
+        help="Caminho para o CSV de gas (ex.: data/gas_data_tcc.csv do fetch_blocks_goldrush).",
     )
     parser.add_argument(
         "--model-dir",

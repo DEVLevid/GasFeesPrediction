@@ -23,32 +23,41 @@ from sklearn.preprocessing import MinMaxScaler  # type: ignore[import]
 class SequenceConfig:
     """Configuração para criação de sequências temporais."""
 
-    target_column: str = "avgGasPrice_Gwei"
+    target_column: str = "gas_used"
     window_size: int = 30
     forecast_horizon: int = 1
 
 
-def load_raw_data(path: str | Path) -> pd.DataFrame:
-    """Carrega o CSV consolidado de gas gerado pelo pipeline de coleta."""
-    df = pd.read_csv(path)
+def _time_column(df: pd.DataFrame) -> str | None:
+    """Retorna a coluna de tempo disponível: signed_at (GoldRush blocos) ou date."""
+    if "signed_at" in df.columns:
+        return "signed_at"
     if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
-        df.sort_values("date", inplace=True)
+        return "date"
+    return None
+
+
+def load_raw_data(path: str | Path) -> pd.DataFrame:
+    """Carrega o CSV de gas (GoldRush block_v2 ou outro pipeline)."""
+    df = pd.read_csv(path)
+    time_col = _time_column(df)
+    if time_col:
+        df[time_col] = pd.to_datetime(df[time_col], errors="coerce")
+        df.sort_values(time_col, inplace=True)
         df.reset_index(drop=True, inplace=True)
     return df
 
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Limpeza simples dos dados:
-    - Ordenar por data.
-    - Remover linhas completamente vazias.
-    - Forward-fill de valores faltantes onde fizer sentido.
+    Limpeza simples: ordenar por tempo, remover linhas vazias, forward/back fill.
+    Suporta coluna de tempo 'signed_at' (GoldRush) ou 'date'.
     """
     result = df.copy()
-    if "date" in result.columns:
-        result["date"] = pd.to_datetime(result["date"])
-        result.sort_values("date", inplace=True)
+    time_col = _time_column(result)
+    if time_col:
+        result[time_col] = pd.to_datetime(result[time_col], errors="coerce")
+        result.sort_values(time_col, inplace=True)
 
     result.dropna(how="all", inplace=True)
     result.ffill(inplace=True)
