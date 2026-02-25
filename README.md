@@ -2,167 +2,200 @@
 
 Projeto de TCC em Python para:
 
-- **Coletar dados** de gas da rede Ethereum via API Etherscan (v2).
+- **Coletar dados** de gas da rede Ethereum (ou Polygon) via **API GoldRush (Covalent)**.
 - **Preparar os dados** em formato tabular (Pandas).
-- **Treinar uma rede neural recorrente LSTM** para prever taxas de gas.
-- **Visualizar** graficamente o histórico, as predições e os valores reais em um período escolhido (via notebooks Jupyter).
+- **Treinar uma rede LSTM** para prever métricas de gas (ex.: gas usado no próximo bloco).
+- **Visualizar** histórico, predições e valores reais em notebooks Jupyter.
 
-> Observação: em trabalhos futuros, este projeto poderá ser integrado a uma
-> aplicação web que consome as predições e exibe gráficos interativos.
+Todo o fluxo utiliza apenas a GoldRush API; não há dependência de Etherscan ou outras APIs.
 
-## Arquitetura e fluxo de funcionamento
+---
 
-### Estrutura de pastas
-
-- `src/api/getGasFeeData.py`: funções para chamar a API Etherscan (v2) para:
-  - Preço médio diário do gas (`dailyavggasprice`).
-  - Limite médio diário de gas (`dailyavggaslimit`).
-  - Total diário de gas usado (`dailygasused`).
-  - Estimativa de tempo de confirmação de transações em função do gas price (`gasestimate`).
-- `src/data/fetch_gas_data.py`: pipeline de **coleta** e **consolidação** dos dados de gas em CSV.
-- `src/features/build_features.py`: preparação de dados e criação de **sequências temporais** para a LSTM.
-- `src/models/lstm_model.py`: definição do modelo LSTM e rotinas de treino/salvamento.
-- `src/models/train_lstm.py`: script de treino offline da LSTM.
-- `notebooks/`:
-  - `01_exploracao_dados.ipynb`: exploração inicial dos dados.
-  - `02_treinamento_lstm.ipynb`: visão didática do processo de treino.
-  - `03_demonstracao_predicao.ipynb`: demonstração visual de predição vs valores reais em um período escolhido.
-
-### Fluxo geral
-
-1. **Coleta de dados**: chamadas à API Etherscan retornam séries diárias de métricas de gas.
-2. **Consolidação**: os dados são agrupados em um único CSV indexado por data.
-3. **Preparação / features**: limpeza, normalização e criação de janelas temporais.
-4. **Treino da LSTM**: a rede aprende a prever o valor futuro de `avgGasPrice_Gwei`.
-5. **Demonstração visual**: notebooks carregam o modelo, geram predições e plotam gráficos comparando:
-   - Histórico real.
-   - Predição da LSTM.
-   - Valor real utilizado como referência.
-
-Diagrama conceitual do fluxo:
+## Fluxo de dados
 
 ```mermaid
 flowchart LR
-  dadosEtherscan["Dados da API Etherscan"] --> coleta["Coleta & armazenamento (Pandas)"]
-  coleta --> features["Preparação de dados & features"]
-  features --> treinoLSTM["Treino da LSTM"]
-  treinoLSTM --> modeloTreinado["Modelo treinado (.h5)"]
-  modeloTreinado --> notebookDemo["Notebook de demonstração"]
-  features --> notebookDemo
-  notebookDemo --> graficos["Gráficos: histórico vs predição vs real"]
+  subgraph coleta [Coleta]
+    block_v2[GoldRush block_v2]
+    gas_prices[GoldRush gas_prices]
+  end
+  subgraph armazenamento [Armazenamento]
+    csv_blocks[gas_data_tcc.csv]
+    csv_realtime[gas_price_history.csv]
+  end
+  subgraph pipeline [Pipeline]
+    features[build_features]
+    train[train_lstm]
+    model[Modelo e scaler]
+  end
+  subgraph uso [Uso]
+    demo[Notebooks]
+  end
+  block_v2 --> csv_blocks
+  gas_prices --> csv_realtime
+  csv_blocks --> features
+  features --> train
+  train --> model
+  model --> demo
+  csv_blocks --> demo
 ```
 
-## Como executar
+1. **Coleta (blocos)**  
+   O script `fetch_blocks_goldrush` chama o endpoint `block_v2` da GoldRush para um range de blocos e gera `data/gas_data_tcc.csv` com: `block_height`, `signed_at`, `gas_used`, `gas_limit`, `base_fee`, `tx_count`.
+
+2. **Coleta (tempo real, opcional)**  
+   O coletor `collect_realtime_gas` usa o endpoint de gas prices da GoldRush e anexa leituras em `data/realtime/gas_price_history.csv` (útil para coleta contínua, ex.: Docker).
+
+3. **Preparação**  
+   `build_features` carrega o CSV, limpa, normaliza e cria janelas temporais para a LSTM (suporta tanto o schema GoldRush quanto formato legado).
+
+4. **Treino**  
+   `train_lstm` treina a LSTM e salva modelo e scaler em `models/`.
+
+5. **Demonstração**  
+   Os notebooks carregam o modelo e o dataset para comparar predições com valores reais.
+
+---
+
+## Estrutura do projeto
+
+| Caminho | Descrição |
+|--------|-----------|
+| `src/api/goldrush_gas.py` | Integração GoldRush: gas prices em tempo real e snapshot atual. |
+| `src/data/fetch_blocks_goldrush.py` | Mineração de blocos (block_v2) e geração de `gas_data_tcc.csv`. |
+| `src/data/collect_realtime_gas.py` | Coletor contínuo de gas price (GoldRush), append em CSV. |
+| `src/features/build_features.py` | Limpeza, escala e sequências temporais para a LSTM. |
+| `src/models/lstm_model.py` | Definição e treino da LSTM. |
+| `src/models/train_lstm.py` | Script de treino a partir do CSV. |
+| `notebooks/01_exploracao_dados.ipynb` | Exploração do dataset. |
+| `notebooks/02_treinamento_lstm.ipynb` | Visão do processo de treino. |
+| `notebooks/03_demonstracao_predicao.ipynb` | Comparação predição vs real. |
+
+---
+
+## Passo a passo: instalar e rodar
 
 ### 1. Requisitos e instalação
 
-1. Tenha Python 3.9+ instalado.
-2. Clone este repositório.
-3. Crie e ative um ambiente virtual (recomendado):
+- Python 3.9+
+- Clone o repositório e use um ambiente virtual (recomendado):
 
 ```bash
+git clone <repo>
+cd GasFeesPrediction
 python3 -m venv .venv
-source .venv/bin/activate  # Linux/macOS
+source .venv/bin/activate   # Linux/macOS
+# ou: .venv\Scripts\activate  # Windows
 ```
 
-4. Instale as dependências:
+Instale as dependências:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configuração da API Etherscan
+### 2. Configuração da API GoldRush
 
-Crie um arquivo `.env` na raiz do projeto com:
-
-```bash
-API_KEY=SuaApiKeyEtherscanAqui
-BASE_URL=https://api.etherscan.io/v2/api
-```
-
-> A API Etherscan possui limites de requisição e alguns endpoints são PRO.
-> Consulte a documentação oficial para mais detalhes sobre limites e planos.
-
-### 3. Coleta e consolidação de dados
-
-Use o script `src/data/fetch_gas_data.py` para baixar e consolidar os dados
-de gas em um CSV:
+Crie um arquivo `.env` na raiz do projeto:
 
 ```bash
-python -m src.data.fetch_gas_data --days 365
+# Obrigatório
+GOLDRUSH_API_KEY=sua_chave_covalent_aqui
+
+# Opcionais (valores padrão abaixo)
+GOLDRUSH_BASE_URL=https://api.covalenthq.com
+GOLDRUSH_CHAIN_NAME=eth-mainnet
+GOLDRUSH_EVENT_TYPE=erc20
+GOLDRUSH_QUOTE_CURRENCY=USD
 ```
 
-Isso irá gerar um arquivo semelhante a:
+Obtenha uma chave em [Covalent/GoldRush](https://www.covalenthq.com/).
 
-```text
-data/raw/gas_data_20240101_20250101.csv
-```
+### 3. Coleta de dados (retroativa)
 
-Você também pode informar um intervalo explícito:
+O projeto obtém dados **retroativos** (históricos) via GoldRush: você escolhe um intervalo no passado e o script baixa os blocos nesse intervalo.
+
+**Por blocos** (número do bloco inicial e final):
 
 ```bash
-python -m src.data.fetch_gas_data --start 2024-01-01 --end 2025-01-01
+python -m src.data.fetch_blocks_goldrush 18900000 18900100 -o data/gas_data_tcc.csv
 ```
+
+**Por data** (intervalo de datas; o script converte em blocos automaticamente):
+
+```bash
+python -m src.data.fetch_blocks_goldrush --start-date 2024-01-01 --end-date 2024-01-07 -o data/gas_data_tcc.csv
+```
+
+Saída padrão: `data/gas_data_tcc.csv`. Opções úteis:
+
+- `--chain matic-mainnet` para Polygon  
+- `--tx-count` para incluir número de transações por bloco (mais requisições)  
+- `-o caminho/arquivo.csv` para outro caminho  
+
+Para treino com mais dados, use um range maior (ex.: mais dias ou milhares de blocos). O script faz pausas entre requisições para evitar rate limit.
 
 ### 4. Treino do modelo LSTM
 
-Com o CSV consolidado, execute o script de treino:
+Com o CSV gerado:
 
 ```bash
-python -m src.models.train_lstm --data-path data/raw/gas_data_20240101_20250101.csv
+python -m src.models.train_lstm --data-path data/gas_data_tcc.csv
 ```
 
-Ao final, serão gerados:
+Serão gerados:
 
-- `models/lstm_gas_price.h5`: modelo LSTM treinado.
-- `models/scaler.pkl`: scaler e configuração das features/sequências.
+- `models/lstm_gas_price.h5` — modelo treinado  
+- `models/scaler.pkl` — scaler e configuração de features/sequências  
 
-### 5. Análises e demonstração visual (notebooks)
+Você pode passar `--model-dir` e `--scaler-path` para outros caminhos.
 
-Registre o kernel do ambiente virtual, se necessário:
+### 5. Notebooks (exploração e demonstração)
+
+Registre o kernel do ambiente (se necessário):
 
 ```bash
 python -m ipykernel install --user --name gasfeesprediction
 ```
 
-Abra os notebooks no Jupyter Lab/Notebook ou VS Code:
+Abra no Jupyter Lab/Notebook ou VS Code:
 
-- `notebooks/01_exploracao_dados.ipynb`: exploração descritiva dos dados.
-- `notebooks/02_treinamento_lstm.ipynb`: narrativa visual do treino.
-- `notebooks/03_demonstracao_predicao.ipynb`: escolha de período e gráficos de:
-  - Histórico real de `avgGasPrice_Gwei`.
-  - Predições da LSTM.
-  - Valores reais usados como referência.
+- **01_exploracao_dados.ipynb** — análise do dataset GoldRush (`gas_data_tcc.csv`).  
+- **02_treinamento_lstm.ipynb** — narrativa do treino.  
+- **03_demonstracao_predicao.ipynb** — período escolhido, gráficos de predição vs real.  
 
-## Transparência do código e do fluxo
+Nos notebooks, use o caminho do CSV (ex.: `data/gas_data_tcc.csv`) onde for pedido o dataset.
 
-Este repositório foi estruturado para facilitar a leitura e explicação no TCC:
+### 6. Coleta contínua com Docker (opcional)
 
-- **Módulos separados por responsabilidade** (`api`, `data`, `features`, `models`, `notebooks`).
-- **Docstrings** nas funções principais explicando:
-  - O que cada função faz.
-  - Quais parâmetros recebe.
-  - O que retorna.
-- **Notebooks narrativos** que contam a “história”:
-  - De onde vêm os dados.
-  - Como são transformados em sequências.
-  - Como o modelo é treinado e avaliado.
-  - Como as predições são comparadas com valores reais.
+Para montar um histórico próprio em tempo real com GoldRush:
 
-Essas partes podem ser facilmente referenciadas e copiadas para o texto do TCC.
+1. No `.env`, configure pelo menos:
 
-## Trabalhos futuros: integração com aplicação web
+```bash
+GOLDRUSH_API_KEY=sua_chave
+```
 
-Como extensão futura (TODO), este projeto pode ser integrado a uma aplicação web:
+2. Suba o coletor:
 
-- Criar uma API (por exemplo, em FastAPI ou Flask) que:
-  - Carrega o modelo treinado e o scaler.
-  - Recebe parâmetros de período de análise.
-  - Retorna, em JSON, as séries de histórico, predição e valores reais.
-- Desenvolver um frontend (por exemplo, em React ou outra tecnologia) que:
-  - Consome essa API.
-  - Renderiza gráficos interativos semelhantes aos dos notebooks.
+```bash
+docker compose up -d --build
+```
 
-No momento, o foco é a **análise de dados e demonstração via notebooks**, que já
-atendem aos objetivos do TCC.
+O serviço `gas-collector` chama a GoldRush periodicamente e anexa linhas em `./data/realtime/gas_price_history.csv` (ou o path definido em `DATA_PATH`).
 
+---
+
+## Transparência e TCC
+
+- Módulos separados por responsabilidade (`api`, `data`, `features`, `models`, `notebooks`).  
+- Docstrings nas funções principais (objetivo, parâmetros, retorno).  
+- Notebooks narrativos: origem dos dados (GoldRush), transformações, treino e comparação predição/real.  
+
+Essas partes podem ser referenciadas diretamente no texto do TCC.
+
+---
+
+## Trabalhos futuros
+
+- Integração com aplicação web: API (ex.: FastAPI) que carrega o modelo e retorna histórico/predições em JSON; frontend com gráficos interativos.

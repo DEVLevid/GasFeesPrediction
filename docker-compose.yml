@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  gas-collector:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - COLLECT_INTERVAL_SECONDS=60
+      - DATA_PATH=/data/gas_price_history.csv
+      - COLLECT_MODE=loop
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+

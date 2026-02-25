@@ -9,3 +9,5 @@ joblib
 ipykernel
 ipywidgets
 plotly
+python-dotenv
+tqdm>=4.64.0
