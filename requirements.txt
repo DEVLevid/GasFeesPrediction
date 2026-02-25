@@ -1,0 +1,11 @@
+requests>=2.28.0
+pandas>=1.5.0
+numpy
+scikit-learn
+matplotlib
+seaborn
+tensorflow
+joblib
+ipykernel
+ipywidgets
+plotly

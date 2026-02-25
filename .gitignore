@@ -1,0 +1,29 @@
+################################
+# Python / data-science project
+################################
+
+# Bytecode / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.pyright/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.code-workspace
+
