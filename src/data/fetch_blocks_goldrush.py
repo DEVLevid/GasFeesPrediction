@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -41,6 +41,9 @@ MAX_RETRIES = 3
 _REF_BLOCK_ETH = 18_900_000
 _REF_DATE_ETH = datetime(2023, 12, 30, 18, 5, 35)  # UTC, conforme block_v2
 _BLOCKS_PER_DAY: dict[str, float] = {"eth-mainnet": 7200.0, "matic-mainnet": 43200.0}
+_BLOCKS_PER_HOUR: dict[str, float] = {
+    k: v / 24.0 for k, v in _BLOCKS_PER_DAY.items()
+}
 
 
 def _date_to_block_range(
@@ -63,6 +66,21 @@ def _date_to_block_range(
     start_block = max(0, int(_REF_BLOCK_ETH + start_days * blocks_per_day))
     end_block = max(start_block, int(_REF_BLOCK_ETH + (end_days + 1) * blocks_per_day))
     return start_block, end_block
+
+
+def date_to_block_range_hours(
+    start_date: str,
+    hours: float,
+    chain_name: str,
+) -> tuple[int, int]:
+    """
+    Converte uma data (YYYY-MM-DD) e duração em horas em intervalo de blocos.
+    Útil para gerar dataset de teste (ex.: 1 hora na data de ontem).
+    """
+    start_block, _ = _date_to_block_range(start_date, start_date, chain_name)
+    blocks_per_hour = _BLOCKS_PER_HOUR.get(chain_name, 7200.0 / 24.0)
+    n_blocks = max(1, int(hours * blocks_per_hour))
+    return start_block, start_block + n_blocks - 1
 
 
 def _auth_headers(api_key: str) -> dict[str, str]:
@@ -254,6 +272,18 @@ def main() -> None:
         help="Data final para coleta retroativa (use com --start-date).",
     )
     parser.add_argument(
+        "--hours",
+        type=float,
+        default=None,
+        metavar="N",
+        help="Usar apenas N horas a partir de --start-date (ex.: 1 = 1 hora). Ideal para dataset de teste.",
+    )
+    parser.add_argument(
+        "--yesterday",
+        action="store_true",
+        help="Usar a data de ontem (UTC) como --start-date. Use com --hours para intervalo de 1h.",
+    )
+    parser.add_argument(
         "--chain",
         type=str,
         default=os.getenv("GOLDRUSH_CHAIN_NAME", "eth-mainnet"),
@@ -272,15 +302,29 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.yesterday:
+        yesterday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+        args.start_date = args.start_date or yesterday
+        if not args.end_date:
+            args.hours = 1.0 if args.hours is None else args.hours
+
     start_block = args.start_block
     end_block = args.end_block
-    if args.start_date and args.end_date:
+    if args.start_date and args.hours is not None:
+        start_block, end_block = date_to_block_range_hours(
+            args.start_date, args.hours, args.chain
+        )
+        print(f"Intervalo {args.start_date} ({args.hours}h) → blocos {start_block} a {end_block}")
+    elif args.start_date and args.end_date:
         start_block, end_block = _date_to_block_range(
             args.start_date, args.end_date, args.chain
         )
         print(f"Intervalo {args.start_date} a {args.end_date} → blocos {start_block} a {end_block}")
     if start_block is None or end_block is None:
-        parser.error("Informe start_block e end_block, ou --start-date e --end-date")
+        parser.error(
+            "Informe start_block e end_block, ou --start-date e --end-date, "
+            "ou --start-date/--yesterday com --hours (ex.: --yesterday --hours 1)"
+        )
     if start_block > end_block:
         parser.error("start_block deve ser <= end_block")
 

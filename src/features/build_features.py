@@ -29,11 +29,13 @@ class SequenceConfig:
 
 
 def _time_column(df: pd.DataFrame) -> str | None:
-    """Retorna a coluna de tempo disponível: signed_at (GoldRush blocos) ou date."""
+    """Retorna a coluna de tempo disponível: signed_at (GoldRush), date ou Date."""
     if "signed_at" in df.columns:
         return "signed_at"
     if "date" in df.columns:
         return "date"
+    if "Date" in df.columns:
+        return "Date"
     return None
 
 
@@ -117,7 +119,12 @@ def create_sequences(
     y_list = [float(target[end_idx - 1 + horizon]) for end_idx in indices]
 
     if not seq_list:
-        raise ValueError("Dados insuficientes para criar sequências com a configuração atual.")
+        min_required = window + horizon
+        raise ValueError(
+            f"Dados insuficientes para criar sequências com a configuração atual. "
+            f"Precisa de pelo menos {min_required} linhas (window_size={window} + forecast_horizon={horizon}), "
+            f"mas o DataFrame tem {len(df)} linhas. Reduza window_size ou use um dataset maior."
+        )
 
     X = np.array(seq_list)
     y = np.array(y_list)

@@ -90,8 +90,15 @@ def save_model(model: keras.Model, path: str | Path) -> Path:
 
 
 def load_model(path: str | Path) -> keras.Model:
-    """Carrega um modelo previamente salvo."""
-    return keras.models.load_model(path)
+    """Carrega um modelo previamente salvo (HDF5/.h5)."""
+    # Keras 3+ não resolve "mse"/"mae" no HDF5; carregar sem compile e recompilar
+    model = keras.models.load_model(path, compile=False)
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=1e-3),
+        loss="mse",
+        metrics=["mae"],
+    )
+    return model
 
 
 __all__ = ["build_lstm_model", "train_lstm", "save_model", "load_model"]
