@@ -2,7 +2,7 @@
 
 Projeto de TCC em Python para:
 
-- **Coletar dados** de gas da rede Ethereum (ou Polygon) via **API GoldRush (Covalent)**.
+- **Coletar dados** de gas da rede Ethereum via **API GoldRush (Covalent)**.
 - **Preparar os dados** em formato tabular (Pandas).
 - **Treinar uma rede LSTM** para prever métricas de gas (ex.: gas usado no próximo bloco).
 - **Visualizar** histórico, predições e valores reais em notebooks Jupyter.
@@ -128,8 +128,7 @@ python -m src.data.fetch_blocks_goldrush --start-date 2024-01-01 --end-date 2024
 ```
 
 Saída padrão: `data/gas_data_tcc.csv`. Opções úteis:
-
-- `--chain matic-mainnet` para Polygon  
+ 
 - `--tx-count` para incluir número de transações por bloco (mais requisições)  
 - `-o caminho/arquivo.csv` para outro caminho  
 
@@ -166,7 +165,7 @@ Abra no Jupyter Lab/Notebook ou VS Code:
 
 Nos notebooks, use o caminho do CSV (ex.: `data/gas_data_tcc.csv`) onde for pedido o dataset.
 
-### 6. Coleta contínua com Docker (opcional)
+### 6. Coleta contínua com Docker
 
 Para montar um histórico próprio em tempo real com GoldRush:
 
@@ -191,8 +190,6 @@ O serviço `gas-collector` chama a GoldRush periodicamente e anexa linhas em `./
 - Módulos separados por responsabilidade (`api`, `data`, `features`, `models`, `notebooks`).  
 - Docstrings nas funções principais (objetivo, parâmetros, retorno).  
 - Notebooks narrativos: origem dos dados (GoldRush), transformações, treino e comparação predição/real.  
-
-Essas partes podem ser referenciadas diretamente no texto do TCC.
 
 ---
 
