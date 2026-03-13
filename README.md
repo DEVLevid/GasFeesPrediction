@@ -15,13 +15,12 @@ Todo o fluxo utiliza apenas a GoldRush API; não há dependência de Etherscan o
 
 ```mermaid
 flowchart LR
-  subgraph coleta [Coleta]
+  subgraph coleta [Coleta via API GoldRush]
     block_v2[GoldRush block_v2]
     gas_prices[GoldRush gas_prices]
   end
   subgraph armazenamento [Armazenamento]
     csv_blocks[gas_data_tcc.csv]
-    csv_realtime[gas_price_history.csv]
   end
   subgraph pipeline [Pipeline]
     features[build_features]
@@ -32,7 +31,6 @@ flowchart LR
     demo[Notebooks]
   end
   block_v2 --> csv_blocks
-  gas_prices --> csv_realtime
   csv_blocks --> features
   features --> train
   train --> model
@@ -40,19 +38,17 @@ flowchart LR
   csv_blocks --> demo
 ```
 
-1. **Coleta (blocos)**  
-   O script `fetch_blocks_goldrush` chama o endpoint `block_v2` da GoldRush para um range de blocos e gera `data/gas_data_tcc.csv` com: `block_height`, `signed_at`, `gas_used`, `gas_limit`, `base_fee`, `tx_count`.
+1. **GET da API GoldRush**  
+   - **Preços atuais:** `goldrush_gas.py` expõe `get_gas_prices()` e `get_current_gas_snapshot()` (endpoint de gas prices).  
+   - **Dados históricos:** o script `fetch_blocks_goldrush` chama o endpoint `block_v2` para um range de blocos e gera `data/gas_data_tcc.csv` com: `block_height`, `signed_at`, `gas_used`, `gas_limit`, `base_fee`, `tx_count`.
 
-2. **Coleta (tempo real, opcional)**  
-   O coletor `collect_realtime_gas` usa o endpoint de gas prices da GoldRush e anexa leituras em `data/realtime/gas_price_history.csv` (útil para coleta contínua, ex.: Docker).
-
-3. **Preparação**  
+2. **Preparação**  
    `build_features` carrega o CSV, limpa, normaliza e cria janelas temporais para a LSTM (suporta tanto o schema GoldRush quanto formato legado).
 
-4. **Treino**  
+3. **Treino**  
    `train_lstm` treina a LSTM e salva modelo e scaler em `models/`.
 
-5. **Demonstração**  
+4. **Demonstração**  
    Os notebooks carregam o modelo e o dataset para comparar predições com valores reais.
 
 ---
@@ -61,9 +57,8 @@ flowchart LR
 
 | Caminho | Descrição |
 |--------|-----------|
-| `src/api/goldrush_gas.py` | Integração GoldRush: gas prices em tempo real e snapshot atual. |
-| `src/data/fetch_blocks_goldrush.py` | Mineração de blocos (block_v2) e geração de `gas_data_tcc.csv`. |
-| `src/data/collect_realtime_gas.py` | Coletor contínuo de gas price (GoldRush), append em CSV. |
+| `src/api/goldrush_gas.py` | GET na GoldRush: gas prices em tempo real e snapshot atual. |
+| `src/data/fetch_blocks_goldrush.py` | GET blocos históricos (block_v2) e geração de `gas_data_tcc.csv`. |
 | `src/features/build_features.py` | Limpeza, escala e sequências temporais para a LSTM. |
 | `src/models/lstm_model.py` | Definição e treino da LSTM. |
 | `src/models/train_lstm.py` | Script de treino a partir do CSV. |
@@ -164,24 +159,6 @@ Abra no Jupyter Lab/Notebook ou VS Code:
 - **03_demonstracao_predicao.ipynb** — período escolhido, gráficos de predição vs real.  
 
 Nos notebooks, use o caminho do CSV (ex.: `data/gas_data_tcc.csv`) onde for pedido o dataset.
-
-### 6. Coleta contínua com Docker
-
-Para montar um histórico próprio em tempo real com GoldRush:
-
-1. No `.env`, configure pelo menos:
-
-```bash
-GOLDRUSH_API_KEY=sua_chave
-```
-
-2. Suba o coletor:
-
-```bash
-docker compose up -d --build
-```
-
-O serviço `gas-collector` chama a GoldRush periodicamente e anexa linhas em `./data/realtime/gas_price_history.csv` (ou o path definido em `DATA_PATH`).
 
 ---
 
