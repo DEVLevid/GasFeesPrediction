@@ -72,7 +72,7 @@ flowchart LR
 
 ### 1. Requisitos e instalação
 
-- Python 3.9+
+- **Python 3.10 ou superior** (recomendado 3.11+; versões antigas como 3.9 não são mais suportadas).
 - Clone o repositório e use um ambiente virtual (recomendado):
 
 ```bash
@@ -88,6 +88,16 @@ Instale as dependências:
 ```bash
 pip install -r requirements.txt
 ```
+
+**Notebooks (Jupyter):** para usar os notebooks com um kernel suportado, registre o ambiente como kernel após ativar o venv:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m ipykernel install --user --name gasfeesprediction
+```
+
+Depois, no Jupyter/VS Code/Cursor, selecione o kernel **"gasfeesprediction"** (ou o interpretador do `.venv`).
 
 ### 2. Configuração da API GoldRush
 
