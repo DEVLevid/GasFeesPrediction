@@ -84,7 +84,7 @@ def train_pipeline(
         X_val,
         y_val,
         batch_size=32,
-        epochs=50,
+        epochs=1000,
     )
 
     print("Treino concluído. Última loss de validação:", history.history["val_loss"][-1])

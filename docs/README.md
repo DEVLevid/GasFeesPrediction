@@ -14,6 +14,7 @@ Cada arquivo de código ou notebook possui um arquivo de documentação relacion
 | `notebooks/01_exploracao_dados.ipynb` | [docs/notebooks/01_exploracao_dados.md](notebooks/01_exploracao_dados.md) |
 | `notebooks/02_treinamento_lstm.ipynb` | [docs/notebooks/02_treinamento_lstm.md](notebooks/02_treinamento_lstm.md) |
 | `notebooks/03_demonstracao_predicao.ipynb` | [docs/notebooks/03_demonstracao_predicao.md](notebooks/03_demonstracao_predicao.md) |
+| `notebooks/04_predicao_2025_mensal.ipynb` | Predição mensal 2025 com LSTM e dados reais via API GoldRush (sem doc dedicado ainda). |
 
 Cada documento contém:
 - **O que o arquivo faz**: funções principais, entradas/saídas, dependências e variáveis de ambiente (quando aplicável).

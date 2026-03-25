@@ -85,6 +85,22 @@ def scale_features(
     return df_scaled, scaler
 
 
+def minmax_transform_clip(
+    scaler: MinMaxScaler,
+    X: np.ndarray | pd.DataFrame,
+    *,
+    clip_min: float = 0.0,
+    clip_max: float = 1.0,
+) -> np.ndarray:
+    """
+    `transform` seguido de clip — útil na inferência quando o período de teste tem
+    valores acima do máximo (ou abaixo do mínimo) visto no treino: sem o clip, a LSTM
+    recebe entradas fora de [0, 1] e tende a degradar fortemente.
+    """
+    arr = np.asarray(scaler.transform(X), dtype=np.float64)
+    return np.clip(arr, clip_min, clip_max)
+
+
 def create_sequences(
     df: pd.DataFrame,
     feature_columns: List[str],
@@ -156,6 +172,7 @@ __all__ = [
     "load_raw_data",
     "clean_data",
     "scale_features",
+    "minmax_transform_clip",
     "create_sequences",
     "train_val_test_split",
 ]

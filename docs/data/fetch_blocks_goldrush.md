@@ -6,8 +6,8 @@ Este módulo **minera dados históricos de blocos** via API GoldRush (Covalent),
 
 ### Funcionalidades principais
 
-1. **`fetch_blockchain_data(start_block, end_block, api_key, chain_name, include_tx_count)`**
-   - Itera sobre cada altura de bloco no intervalo `[start_block, end_block]`.
+1. **`fetch_blockchain_data(start_block, end_block, api_key, chain_name, include_tx_count, step=1)`**
+   - Itera sobre blocos no intervalo `[start_block, end_block]`. O parâmetro **step** (default 1) amostra um bloco a cada `step` (ex.: `step=7200` para ~1 bloco por dia na Ethereum), reduzindo requisições para períodos longos (ex.: ano 2025).
    - Para cada bloco chama o endpoint block_v2 e extrai: `block_height`, `signed_at`, `gas_used`, `gas_limit`, `base_fee`. Opcionalmente obtém `tx_count` via endpoint de transações (transactions_v3) quando `include_tx_count=True`.
    - Em falha (conexão, 429 rate limit, resposta vazia) a linha é preenchida com NaN e o loop continua (resiliência).
    - Usa intervalo entre requisições (`REQUEST_INTERVAL_SEC`) e backoff em caso de 429, com retentativas limitadas (`MAX_RETRIES`).

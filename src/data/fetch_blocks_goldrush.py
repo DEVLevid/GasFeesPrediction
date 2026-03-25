@@ -151,9 +151,13 @@ def fetch_blockchain_data(
     api_key: Optional[str] = None,
     chain_name: Optional[str] = None,
     include_tx_count: bool = False,
+    step: int = 1,
 ) -> pd.DataFrame:
     """
     Coleta dados de blocos no range [start_block, end_block] via GoldRush block_v2.
+
+    step: amostra um bloco a cada `step` (default 1). Use step > 1 para reduzir
+    requisições (ex.: step ≈ blocos/dia para ~1 bloco por dia).
 
     Campos por bloco:
     - block_height: altura do bloco (height).
@@ -176,7 +180,7 @@ def fetch_blockchain_data(
 
     rows: list[dict[str, Any]] = []
     for height in tqdm(
-        range(start_block, end_block + 1),
+        range(start_block, end_block + 1, step),
         desc="Blocos",
         unit="bloco",
     ):

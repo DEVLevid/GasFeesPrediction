@@ -65,6 +65,7 @@ flowchart LR
 | `notebooks/01_exploracao_dados.ipynb` | Exploração do dataset. |
 | `notebooks/02_treinamento_lstm.ipynb` | Visão do processo de treino. |
 | `notebooks/03_demonstracao_predicao.ipynb` | Comparação predição vs real. |
+| `notebooks/04_predicao_2025_mensal.ipynb` | Predição mensal para 2025; dados reais via API GoldRush. |
 
 ---
 
